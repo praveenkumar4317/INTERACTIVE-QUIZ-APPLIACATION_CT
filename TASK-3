@@ -1,0 +1,76 @@
+TASK-3
+#VERILOG CODE
+module PipelineProcessor (
+    input clk,
+    input rst,
+    input [7:0] instruction,
+    output reg [7:0] result
+);
+
+// Define pipeline registers
+reg [7:0] IF_ID, ID_EX, EX_MEM, MEM_WB;
+
+always @(posedge clk or posedge rst) begin
+    if (rst) begin
+        IF_ID  <= 0;
+        ID_EX  <= 0;
+        EX_MEM <= 0;
+        MEM_WB <= 0;
+    end else begin
+        IF_ID  <= instruction;  // Fetch
+        ID_EX  <= IF_ID;        // Decode
+        EX_MEM <= ID_EX + 1;    // Execute (simple example)
+        MEM_WB <= EX_MEM;       // Write-back
+        result <= MEM_WB;
+    end
+end
+
+endmodule
+#TEST BENCH
+`timescale 1ns / 1ps
+
+module SyncRAM_tb;
+    reg clk;
+    reg we;
+    reg [3:0] addr;
+    reg [7:0] din;
+    wire [7:0] dout;
+    
+    // Instantiate the SyncRAM module
+    SyncRAM uut (
+        .clk(clk),
+        .we(we),
+        .addr(addr),
+        .din(din),
+        .dout(dout)
+    );
+    
+    // Generate clock signal
+    always #5 clk = ~clk; // 10ns period
+    
+    initial begin
+        // Initialize
+        clk = 0;
+        we = 0;
+        addr = 4'b0000;
+        din = 8'b00000000;
+        
+        // Monitor the signals
+        $monitor("Time=%0t | clk=%b, we=%b, addr=%b, din=%b, dout=%b", $time, clk, we, addr, din, dout);
+        
+        // Test Case 1: Write operation
+        #10 we = 1; addr = 4'b0001; din = 8'b10101010;
+        #10 we = 1; addr = 4'b0010; din = 8'b11001100;
+        
+        // Test Case 2: Read operation
+        #10 we = 0; addr = 4'b0001;
+        #10 we = 0; addr = 4'b0010;
+        
+        // Test Case 3: Overwriting a location
+        #10 we = 1; addr = 4'b0001; din = 8'b11110000;
+        #10 we = 0; addr = 4'b0001;
+        
+        // End Simulation
+        #20 $stop;
+    end
+endmodule 
